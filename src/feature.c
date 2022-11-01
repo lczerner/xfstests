@@ -72,6 +72,30 @@ usage(void)
 	exit(1);
 }
 
+static int
+do_quotactl(int qcmd, char *special, int id, caddr_t data)
+{
+	struct stat64	sbuf;
+	int fd, ret = 0;
+
+	if (lstat64(special, &sbuf) < 0)
+		return(-1);
+
+	if (S_ISBLK(sbuf.st_mode))
+		return quotactl(qcmd, special, id, data);
+
+	fd = open(special, O_PATH);
+	if (fd < 0) {
+		fprintf(stderr, "open failed on ");
+		perror(special);
+		return(1);
+	}
+
+	ret = syscall(__NR_quotactl_fd, fd, qcmd, id, data);
+	close(fd);
+	return ret;
+}
+
 int check_big_ID(char *filename)
 {
 	struct stat64	sbuf;
@@ -168,7 +192,7 @@ hasxfsquota(int type, int q, char *device)
 	qcmd = QCMD(Q_XGETQSTAT, type);
 #else
 	if (q == 0) {
-		if (quotactl(Q_SYNC, device, 0, (caddr_t)&qstat) == ENOPKG) {
+		if (do_quotactl(Q_SYNC, device, 0, (caddr_t)&qstat) == ENOPKG) {
 			if (verbose) {
 				fprintf(stderr, "Q_SYNC not supported\n");
 			}
@@ -179,7 +203,7 @@ hasxfsquota(int type, int q, char *device)
 	qcmd = Q_GETQSTAT;
 #endif
 
-	if (quotactl(qcmd, device, 0, (caddr_t)&qstat) < 0) {
+	if (do_quotactl(qcmd, device, 0, (caddr_t)&qstat) < 0) {
 		if (verbose)
 			perror("quotactl");
 		return (1);

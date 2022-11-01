@@ -9,6 +9,7 @@
 #include <sys/quota.h>
 #include <sys/types.h>
 #include <xfs/xqm.h>
+#include <syscall.h>
 
 /*
  * Exercise the Q_GETNEXTQUOTA and Q_XGETNEXTQUOTA quotactls.
@@ -53,6 +54,30 @@ void usage(char *progname)
 {
 	printf("usage: %s [-v] -[u|g|p] -i id -d device\n", progname);
 	exit(1);
+}
+
+static int
+do_quotactl(int qcmd, char *special, int id, caddr_t data)
+{
+	struct stat64	sbuf;
+	int fd, ret = 0;
+
+	if (lstat64(special, &sbuf) < 0)
+		return(-1);
+
+	if (S_ISBLK(sbuf.st_mode))
+		return quotactl(qcmd, special, id, data);
+
+	fd = open(special, O_PATH);
+	if (fd < 0) {
+		fprintf(stderr, "open failed on ");
+		perror(special);
+		return(1);
+	}
+
+	ret = syscall(__NR_quotactl_fd, fd, qcmd, id, data);
+	close(fd);
+	return ret;
 }
 
 int main(int argc, char *argv[])
@@ -127,7 +152,7 @@ int main(int argc, char *argv[])
 	if (verbose)
 		printf("====Q_GETNEXTQUOTA====\n");
 	cmd = QCMD(Q_GETNEXTQUOTA, type);
-	if (quotactl(cmd, device, id, (void *)&dqb) < 0) {
+	if (do_quotactl(cmd, device, id, (void *)&dqb) < 0) {
 		perror("Q_GETNEXTQUOTA");
 		retval = 1;
 	} else {
@@ -147,7 +172,7 @@ int main(int argc, char *argv[])
 	if (verbose)
 		printf("====Q_XGETNEXTQUOTA====\n");
 	cmd = QCMD(Q_XGETNEXTQUOTA, USRQUOTA);
-	if (quotactl(cmd, device, id, (void *)&xqb) < 0) {
+	if (do_quotactl(cmd, device, id, (void *)&xqb) < 0) {
 		perror("Q_XGETNEXTQUOTA");
 		retval = 1;
 	} else {

@@ -12,7 +12,7 @@ _require_quota()
     [ -n "$QUOTA_PROG" ] || _notrun "Quota user tools not installed"
 
     case $FSTYP in
-    ext2|ext3|ext4|ext4dev|f2fs|reiserfs)
+    ext2|ext3|ext4|ext4dev|f2fs|reiserfs|tmpfs)
 	if [ ! -d /proc/sys/fs/quota ]; then
 	    _notrun "Installed kernel does not support quotas"
 	fi
@@ -102,8 +102,13 @@ _require_prjquota()
 _require_getnextquota()
 {
 	_require_test_program "test-nextquota"
-	$here/src/test-nextquota -i 0 -u -d $SCRATCH_DEV &> $seqres.full || \
+	if $here/src/test-nextquota -i 0 -u -d $SCRATCH_DEV &> $seqres.full; then
+		:
+	elif $here/src/test-nextquota -i 0 -u -d $SCRATCH_MNT &> $seqres.full; then
+		:
+	else
 		_notrun "No GETNEXTQUOTA support"
+	fi
 }
 
 #
@@ -120,6 +125,9 @@ _scratch_enable_pquota()
 		;;
 	f2fs)
 		_scratch_mkfs "-O extra_attr -O quota -O project_quota" >> $seqres.full 2>&1
+		;;
+	tmpfs)
+		_notrun "kernel doesn't support project feature on $FSTYP"
 		;;
 	esac
 }
@@ -241,10 +249,10 @@ _qmount_option()
 	# thanks to "quota" which will match with "uquota" and "gquota" etc.
 	export MOUNT_OPTIONS=`echo $MOUNT_OPTIONS \
 	| sed   -e 's/uquota/QUOTA/g'      \
-		-e 's/usrquota/QUOTA/g'    \
+		-e 's/usrquota[^, ]*/QUOTA/g'   \
 		-e 's/usrjquota=[^, ]*/QUOTA/g' \
 		-e 's/gquota/QUOTA/g'      \
-		-e 's/grpquota/QUOTA/g'    \
+		-e 's/grpquota[^, ]*/QUOTA/g'    \
 		-e 's/grpjquota=[^, ]*/QUOTA/g' \
 		-e 's/\bpquota/QUOTA/g'    \
 		-e 's/prjquota/QUOTA/g'    \
@@ -280,7 +288,7 @@ _check_quota_usage()
 
 	VFS_QUOTA=0
 	case $FSTYP in
-	ext2|ext3|ext4|ext4dev|f2fs|reiserfs|gfs2|bcachefs)
+	ext2|ext3|ext4|ext4dev|f2fs|reiserfs|gfs2|bcachefs|tmpfs)
 		VFS_QUOTA=1
 		quotaon -f -u -g $SCRATCH_MNT 2>/dev/null
 		;;

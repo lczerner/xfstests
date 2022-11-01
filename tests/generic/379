@@ -83,6 +83,8 @@ _qmount_option "usrquota,grpquota"
 _qmount
 if $here/src/feature -G $SCRATCH_DEV ; then
 	:
+elif $here/src/feature -G $SCRATCH_MNT ; then
+	:
 else
 	_notrun "No quota support at mount time"
 fi

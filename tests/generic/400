@@ -49,7 +49,12 @@ _qmount
 for TYPE in u g; do
 	let NEXT=ID+1
 	echo "Ask for ID after $NEXT expecting nothing"
-	$here/src/test-nextquota -i $NEXT -${TYPE} -d $SCRATCH_DEV
+	if out=`$here/src/test-nextquota -i $NEXT -${TYPE} -d $SCRATCH_DEV 2>/dev/null`; then
+		:
+	elif out=`$here/src/test-nextquota -i $NEXT -${TYPE} -d $SCRATCH_MNT 2>/dev/null`; then
+		:
+	fi
+	[ -n "$out" ] && echo $out
 done
 
 # success, all done
