@@ -66,8 +66,12 @@ for TYPE in u g; do
 done
 
 # remount just for kicks, make sure we get it off disk
-_scratch_unmount
-_qmount
+# except for tmpfs since it doesn't preserve data across unmount
+if [ "$FSTYP" != tmpfs ]; then
+	_scratch_unmount
+	_qmount
+fi
+
 quotaon $SCRATCH_MNT 2>/dev/null
 
 # Read them back by iterating based on quotas returned.
@@ -79,8 +83,13 @@ for TYPE in u g; do
 	NEXT=1
 	for ID in `cat $tmp.IDs`; do
 		echo "Trying ID $NEXT expecting $ID" >> $seqres.full
-		Q=`$here/src/test-nextquota -i $NEXT -${TYPE} -d $SCRATCH_DEV` \
-			 || _fail "test-nextquota failed: $Q"
+		if Q=`$here/src/test-nextquota -i $NEXT -${TYPE} -d $SCRATCH_DEV 2>&1`; then
+			:
+		elif Q=`$here/src/test-nextquota -i $NEXT -${TYPE} -d $SCRATCH_MNT 2>&1`; then
+			:
+		else
+			_fail "test-nextquota failed: $Q"
+		fi
 		echo $Q >> $seqres.full
 		# ID and its inode limits should match
 		echo "$Q" | grep -qw ${ID} || _fail "Didn't get id $ID"
