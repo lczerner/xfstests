@@ -112,25 +112,30 @@ setquota -u -t $grace $grace $SCRATCH_MNT
 setquota -g $qa_user $((250 * $BLOCK_SIZE / 1024)) \
 	 $((500 * $BLOCK_SIZE / 1024)) 3 5 $SCRATCH_MNT
 setquota -g -t $grace $grace $SCRATCH_MNT
-_scratch_unmount
+# Don't unmount/mount on tmpfs
+[ "$FSTYP" != tmpfs ] && _scratch_unmount
 
 echo; echo "### test user limit enforcement"
-_scratch_mount "-o usrquota"
+# Don't unmount/mount on tmpfs
+[ "$FSTYP" != tmpfs ] && _scratch_mount "-o usrquota"
 quotaon $SCRATCH_MNT 2>/dev/null
 type=u
 test_files
 test_enforcement
 cleanup_files
-_scratch_unmount 2>/dev/null
+# Don't unmount/mount on tmpfs
+[ "$FSTYP" != tmpfs ] && _scratch_unmount 2>/dev/null
 
 echo; echo "### test group limit enforcement"
-_scratch_mount "-o grpquota"
+# Don't unmount/mount on tmpfs
+[ "$FSTYP" != tmpfs ] && _scratch_mount "-o grpquota"
 quotaon $SCRATCH_MNT 2>/dev/null
 type=g
 test_files
 test_enforcement
 cleanup_files
-_scratch_unmount 2>/dev/null
+# Don't unmount/mount on tmpfs
+[ "$FSTYP" != tmpfs ] && _scratch_unmount 2>/dev/null
 
 status=0
 exit
